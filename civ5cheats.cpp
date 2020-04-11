@@ -5,7 +5,11 @@
 
 const char* PROCESS_NAME = "CivilizationV_DX11.exe";
 const unsigned int GOLD_VALUE = 10000000;
+const unsigned int BASE_GOLD_OFFSET = 0x00900A28;
 const unsigned int FAITH_VALUE = 100000;
+const unsigned int BASE_FAITH_OFFSET = 0x00900A28;
+const unsigned int CULTURE_INCREASE_VALUE = 1000;
+const unsigned int BASE_CULTURE_OFFSET = 0x00900A28;
 
 uintptr_t GetModuleBaseAddress(DWORD procId, const char* modName)
 {
@@ -96,19 +100,24 @@ int main()
 	std::vector<unsigned int> faithOffsets = { 0x40, 0x90, 0x8, 0x8, 0x6C, 0x8, 0xD8 };
 	baseFaithPtr = moduleBase + 0x00900A28;
 	faithPtr = FindDMAAddy(process_handle, baseFaithPtr, faithOffsets);
+	
+	std::vector<unsigned int> cultureOffsets = { 0x40, 0x90, 0x8, 0x18, 0x24, 0xC, 0x58 };
+	baseCulturePtr = moduleBase + BASE_CULTURE_OFFSET;
+	culturePtr = FindDMAAddy(process_handle, baseCulturePtr, cultureOffsets);
 
-
+	
 	bool lock_gold = false, lock_faith = false;
 	bool update_screen = true;
 	//main loop
 	while (1) {
 		if (update_screen) {
 			system("cls");
-			std::cout << "Gold address = " << "0x" << std::hex << goldPtr << std::endl;//DEBUG
-			std::cout << "Faith address = " << "0x" << std::hex << faithPtr << std::endl;//DEBUG
+			//std::cout << "Gold address = " << "0x" << std::hex << goldPtr << std::endl;//DEBUG
+			//std::cout << "Faith address = " << "0x" << std::hex << faithPtr << std::endl;//DEBUG
 			std::cout << "[NUMPAD 0] - EXIT" << std::endl;
 			std::cout << "[NUMPAD 1] - <" << (lock_gold ? "on" : "off") << "> Lock Gold at 100000" << std::endl;
 			std::cout << "[NUMPAD 2] - <" << (lock_faith ? "on" : "off") << "> Lock Faith at 100000" << std::endl;
+			std::cout << "[NUMPAD 3] - +1000 Culture" << std::endl;
 			update_screen = false;
 		}
 
@@ -125,8 +134,15 @@ int main()
 			lock_faith = !lock_faith;
 			update_screen = true;
 		}
+		if (GetAsyncKeyState(VK_NUMPAD3)) {
+			unsigned int read_value = 0;
+			ReadProcessMemory(process_handle, (LPVOID)culturePtr, &read_value, sizeof(read_value), NULL);
+			unsigned int write_value = read_value + CULTURE_INCREASE_VALUE;
+			WriteProcessMemory(process_handle, (LPVOID)culturePtr, &write_value, sizeof(write_value), NULL);
+			update_screen = true;
+		}
 
-		//write to memory process
+
 		if (lock_gold) {
 			unsigned int write_value = GOLD_VALUE;
 			WriteProcessMemory(process_handle, (LPVOID)goldPtr, &write_value, sizeof(write_value), NULL);
